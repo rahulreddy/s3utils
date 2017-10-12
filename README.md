@@ -3,12 +3,22 @@
 Awesome scripts to use when working with S3 at scale
 
 ## Usage
+
+### Install Dependencies
 ```sh
-npm install or yarn
+$> npm install 
+```
+or
+```sh
+$> yarn
+```
+### DELETE recursively all objects - versions and delete markers in a versioned bucket
 
-// put objects
-$> node putTestObjects.js
-
-// recursively delete objects - versions and delete markers
+```sh
 $> node nuke.js
+```
+
+### PUT multiple 0Byte Objects
+```sh
+$> node putTestObjects.js
 ```
