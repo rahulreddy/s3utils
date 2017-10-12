@@ -28,23 +28,34 @@ const ASYNC_LIMIT = 10;
 function _putObjectVersions(num, count, cb) {
     async.timesLimit(
         count, 2,
-        (n, next) => s3.putObject({ Bucket: BUCKET, Key: 'key-' + num, Body: 'foo' }, next),
+        (n, next) => s3.putObject({Bucket: BUCKET, Key: 'key-' + num, Body: 'foo' }, next),
         cb
     );
 }
 
-s3.createBucket({ Bucket: BUCKET}, err => {
+s3.createBucket({ Bucket: BUCKET }, err => {
     if (err && err.code !== 'BucketAlreadyOwnedByYou') {
         console.log('error creating bucket', err);
         return;
     }
     console.log('created bucket', BUCKET);
-    async.timesLimit(OBJECT_TOTAL, ASYNC_LIMIT,
-    (n, next) => _putObjectVersions(n, VERSIONS_TOTAL, next),
-    (err, res) => {
+    s3.putBucketVersioning({
+        Bucket: BUCKET,
+        VersioningConfiguration: {
+            Status: "Enabled"
+        },
+    }, err => {
         if (err) {
-            return console.log('error occured', err);
+            console.log('error putting versioning on bucket', err);
+            return
         }
-        return console.log('successfully put objects');
+        console.log('put versioning on bucket', BUCKET);
+        async.timesLimit(OBJECT_TOTAL, ASYNC_LIMIT, (n, next) =>
+            _putObjectVersions(n, VERSIONS_TOTAL, next), (err, res) => {
+                if (err) {
+                    return console.log('error occured', err);
+                }
+                return console.log('successfully put objects');
+            });
     });
 });

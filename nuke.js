@@ -46,11 +46,7 @@ function _getKeys(keys) {
 function _deleteVersions(objectsToDelete, cb) {
     // multi object delete can delete max 1000 objects
     let Objects = null;
-
-    // async.groupByLimit(objectsToDelete)
-    async.doWhilst(
-        () => Object.keys(objectsToDelete).length > 0,
-        done => {
+    async.doWhilst(done => {
             Objects = objectsToDelete.splice(0, 999);
             s3.deleteObjects({ Bucket: BUCKET, Delete: { Objects } }, (err, res) => {
                 if (err) {
@@ -61,6 +57,7 @@ function _deleteVersions(objectsToDelete, cb) {
                 return done();
             });
         },
+        () => Object.keys(objectsToDelete).length > 0,
         cb
     );
 
@@ -81,7 +78,7 @@ function nukeObjects(cb) {
             _deleteVersions(keysToDelete.concat(markersToDelete), done);
         }),
         () => {
-            if (VersionIdMarker ||  KeyMarker) {
+            if (VersionIdMarker || KeyMarker) {
                 return true;
             }
             return false;
