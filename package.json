@@ -1,0 +1,15 @@
+{
+  "name": "s3utils",
+  "version": "1.0.0",
+  "description": "Awesome scripts to use when working with S3 at scale",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Rahul Padigela",
+  "license": "MIT",
+  "dependencies": {
+    "async": "^2.5.0",
+    "aws-sdk": "^2.132.0"
+  }
+}
