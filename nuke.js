@@ -40,14 +40,14 @@ function _getKeys(keys) {
 // delete all versions of an object
 function _deleteVersions(objectsToDelete, cb) {
     // multi object delete can delete max 1000 objects
-    const key = objectsToDelete[0].Key;
+    const keys = objectsToDelete.map(v => v.Key);
     let Objects = objectsToDelete.splice(0, 999);
     async.doWhilst(
         done => s3.deleteObjects({ Bucket: BUCKET, Delete: { Objects } }, (err, res) => {
             if (err) {
                 return done(err);
             }
-            console.log('deleted key: ' + key);
+            keys.forEach(k => console.log('deleted key: ' + k));
             return done();
         }),
         () => Object.keys(objectsToDelete).length > 0,
