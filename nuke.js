@@ -1,11 +1,12 @@
 const async = require('async');
 const AWS = require('aws-sdk');
+const http = require('http');
 
 // configurable params
-const BUCKET = '';
+const BUCKET = 'foo';
 const LISTING_LIMIT = 300;
-const ACCESSKEY = '';
-const SECRETKEY = '';
+const ACCESSKEY = 'accessKey1';
+const SECRETKEY = 'verySecretKey1';
 const ENDPOINT = 'http://127.0.0.1:8000';
 
 AWS.config.update({
@@ -21,7 +22,11 @@ AWS.config.update({
 });
 
 const s3 = new AWS.S3({
-    httpOptions: { maxRetries: 0, timeout: 0 },
+    httpOptions: {
+        maxRetries: 0,
+        timeout: 0,
+        agent: new http.Agent({ keepAlive: true }),
+    },
 });
 
 // list object versions
@@ -40,17 +45,22 @@ function _getKeys(keys) {
 // delete all versions of an object
 function _deleteVersions(objectsToDelete, cb) {
     // multi object delete can delete max 1000 objects
-    const keys = objectsToDelete.map(v => v.Key);
-    let Objects = objectsToDelete.splice(0, 999);
+    let Objects = null;
+
+    // async.groupByLimit(objectsToDelete)
     async.doWhilst(
-        done => s3.deleteObjects({ Bucket: BUCKET, Delete: { Objects } }, (err, res) => {
-            if (err) {
-                return done(err);
-            }
-            keys.forEach(k => console.log('deleted key: ' + k));
-            return done();
-        }),
         () => Object.keys(objectsToDelete).length > 0,
+        done => {
+            Objects = objectsToDelete.splice(0, 999);
+            s3.deleteObjects({ Bucket: BUCKET, Delete: { Objects } }, (err, res) => {
+                if (err) {
+                    console.log('batch delete err', err);
+                    return done(err);
+                }
+                Objects.forEach(v => console.log('deleted key: ' + v.Key));
+                return done();
+            });
+        },
         cb
     );
 

@@ -15,7 +15,7 @@ AWS.config.update({
 });
 
 const s3 = new AWS.S3({
-    httpOptions: { timeout: 0 },
+    httpOptions: { maxRetries: 0, timeout: 0 },
 });
 // configurable params
 const BUCKET = 'foo';
@@ -28,14 +28,14 @@ const ASYNC_LIMIT = 10;
 function _putObjectVersions(num, count, cb) {
     async.timesLimit(
         count, 2,
-        (n, next) => s3.putObject({ Bucket: BUCKET, Key: 'key-' + num}, next),
+        (n, next) => s3.putObject({ Bucket: BUCKET, Key: 'key-' + num, Body: 'foo' }, next),
         cb
     );
 }
 
 s3.createBucket({ Bucket: BUCKET}, err => {
-    if (err) {
-        console.log('error creating bucket');
+    if (err && err.code !== 'BucketAlreadyOwnedByYou') {
+        console.log('error creating bucket', err);
         return;
     }
     console.log('created bucket', BUCKET);
