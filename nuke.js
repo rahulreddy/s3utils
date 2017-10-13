@@ -5,10 +5,10 @@ const http = require('http');
 // configurable params
 const BUCKET = 'foo';
 const LISTING_LIMIT = 300;
-const CONCURRENT_LIMIT = 10;
 const ACCESSKEY = 'accessKey1';
 const SECRETKEY = 'verySecretKey1';
 const ENDPOINT = 'http://127.0.0.1:8000';
+const QUIET_MODE = true;
 
 AWS.config.update({
     accessKeyId: ACCESSKEY,
@@ -44,23 +44,30 @@ function _getKeys(keys) {
 }
 
 // delete all versions of an object
-function _deleteVersions(matrix, cb) {
-    return async.eachLimit(matrix, CONCURRENT_LIMIT, (Objects, next) => {
-        s3.deleteObjects({ Bucket: BUCKET, Delete: { Objects, Quiet: true } },
-            (err, res) => {
-                if (err) {
-                    return next(err);
-                }
-                Objects.forEach(v => console.log('deleted key: ' + v.Key));
-                return next();
-            });
-        }, cb);
+function _deleteVersions(objectsToDelete, cb) {
+    // multi object delete can delete max 1000 objects
+    function _batchDelete(Objects, done) {
+        s3.deleteObjects({ Bucket: BUCKET, Delete: { Objects, Quiet: QUIET_MODE } }, (err, res) => {
+            if (err) {
+                console.log('batch delete err', err);
+                return done(err);
+            }
+            Objects.forEach(v => console.log('deleted key: ' + v.Key));
+            return done();
+        });
+    }
+    const fns = [];
+    while(Object.keys(objectsToDelete).length > 0) {
+        const Objects = objectsToDelete.splice(0, 999);
+        fns.push(done => _batchDelete(Objects, done));
+    }
+    async.parallel(fns, cb);
+
 }
 
 function nukeObjects(cb) {
     let VersionIdMarker = null;
     let KeyMarker = null;
-    const matrix = [];
     async.doWhilst(
         done => _listObjectVersions(VersionIdMarker, KeyMarker, (err, data) => {
             if (err) {
@@ -70,24 +77,15 @@ function nukeObjects(cb) {
             KeyMarker = data.NextKeyMarker;
             const keysToDelete = _getKeys(data.Versions);
             const markersToDelete = _getKeys(data.DeleteMarkers);
-            matrix.push(keysToDelete.concat(markersToDelete));
-            return done();
+            _deleteVersions(keysToDelete.concat(markersToDelete), done);
         }),
         () => {
-            if (VersionIdMarker || KeyMarker) {
+            if (VersionIdMarker ||  KeyMarker) {
                 return true;
             }
             return false;
         },
-        err => {
-            if (err) {
-                return cb(err);
-            }
-            if (matrix.length === 0) {
-                return cb();
-            }
-            return _deleteVersions(matrix, cb);
-        }
+        cb
     );
 }
 
