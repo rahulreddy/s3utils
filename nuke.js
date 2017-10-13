@@ -5,6 +5,7 @@ const http = require('http');
 // configurable params
 const BUCKET = 'foo';
 const LISTING_LIMIT = 300;
+const CONCURRENT_LIMIT = 10;
 const ACCESSKEY = 'accessKey1';
 const SECRETKEY = 'verySecretKey1';
 const ENDPOINT = 'http://127.0.0.1:8000';
@@ -44,7 +45,7 @@ function _getKeys(keys) {
 
 // delete all versions of an object
 function _deleteVersions(matrix, cb) {
-    return async.each(matrix, (Objects, next) => {
+    return async.eachLimit(matrix, CONCURRENT_LIMIT, (Objects, next) => {
         s3.deleteObjects({ Bucket: BUCKET, Delete: { Objects, Quiet: true } },
             (err, res) => {
                 if (err) {
