@@ -43,29 +43,23 @@ function _getKeys(keys) {
 }
 
 // delete all versions of an object
-function _deleteVersions(objectsToDelete, cb) {
-    // multi object delete can delete max 1000 objects
-    let Objects = null;
-    async.doWhilst(done => {
-            Objects = objectsToDelete.splice(0, 999);
-            s3.deleteObjects({ Bucket: BUCKET, Delete: { Objects } }, (err, res) => {
+function _deleteVersions(matrix, cb) {
+    return async.each(matrix, (Objects, next) => {
+        s3.deleteObjects({ Bucket: BUCKET, Delete: { Objects, Quiet: true } },
+            (err, res) => {
                 if (err) {
-                    console.log('batch delete err', err);
-                    return done(err);
+                    return next(err);
                 }
                 Objects.forEach(v => console.log('deleted key: ' + v.Key));
-                return done();
+                return next();
             });
-        },
-        () => Object.keys(objectsToDelete).length > 0,
-        cb
-    );
-
+        }, cb);
 }
 
 function nukeObjects(cb) {
     let VersionIdMarker = null;
     let KeyMarker = null;
+    const matrix = [];
     async.doWhilst(
         done => _listObjectVersions(VersionIdMarker, KeyMarker, (err, data) => {
             if (err) {
@@ -75,7 +69,8 @@ function nukeObjects(cb) {
             KeyMarker = data.NextKeyMarker;
             const keysToDelete = _getKeys(data.Versions);
             const markersToDelete = _getKeys(data.DeleteMarkers);
-            _deleteVersions(keysToDelete.concat(markersToDelete), done);
+            matrix.push(keysToDelete.concat(markersToDelete));
+            return done();
         }),
         () => {
             if (VersionIdMarker || KeyMarker) {
@@ -83,7 +78,12 @@ function nukeObjects(cb) {
             }
             return false;
         },
-        cb
+        err => {
+            if (err) {
+                return cb(err);
+            }
+            return _deleteVersions(matrix, cb);
+        }
     );
 }
 
