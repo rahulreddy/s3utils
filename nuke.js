@@ -82,6 +82,9 @@ function nukeObjects(cb) {
             if (err) {
                 return cb(err);
             }
+            if (matrix.length === 0) {
+                return cb();
+            }
             return _deleteVersions(matrix, cb);
         }
     );
