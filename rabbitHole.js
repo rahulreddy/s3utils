@@ -4,16 +4,16 @@ const http = require('http');
 
 // configurable params
 const BUCKET = 'foo';
-const LISTING_LIMIT = 300;
-const ACCESSKEY = 'accessKey1';
-const SECRETKEY = 'verySecretKey1';
+const LISTING_LIMIT = 10000;
+const ACCESSKEY = '';
+const SECRETKEY = '';
 const ENDPOINT = 'http://127.0.0.1:8000';
-const QUIET_MODE = true;
+const QUIET_MODE = false;
 
 AWS.config.update({
     accessKeyId: ACCESSKEY,
     secretAccessKey: SECRETKEY,
-    region: "us-west-1",
+    // region: "us-east-1",
     sslEnabled: false,
     endpoint: ENDPOINT,
     s3ForcePathStyle: true,
@@ -43,31 +43,47 @@ function _getKeys(keys) {
     }));
 }
 
+function logger (msg, val) {
+    if (!QUIET_MODE) {
+        console.log(msg, val);
+    }
+}
+
 function rabbitHole(cb) {
     let VersionIdMarker = null;
     let KeyMarker = null;
     async.doWhilst(
         done => _listObjectVersions(VersionIdMarker, KeyMarker, (err, data) => {
             if (err) {
+                console.log('error');
                 return done(err);
             }
-            console.log(data);
+            // data.Versions.forEach(d => {
+            //     // logger('Key', d.Key, 'VersionId', d.VersionId);
+            // });
             VersionIdMarker = data.NextVersionIdMarker;
             KeyMarker = data.NextKeyMarker;
+            logger('VersionIdMarker', VersionIdMarker);
+            logger('KeyMarker', KeyMarker);
+            return done();
         }),
         () => {
-            if (VersionIdMarker ||  KeyMarker) {
-                return true;
+            if (!VersionIdMarker ||  !KeyMarker) {
+                return false;
             }
-            return false;
+            return true;
         },
-        cb
+        (err, res) => {
+            console.log('err', err, 'res', res);
+            return cb(err, res);
+        }
     );
 }
 
 rabbitHole((err, res) => {
+    console.log('err', err, 'res', res);
     if (err) {
-        return console.log('error occured deleting objects', err);
+        return console.log('error occured listing objects', err);
     }
-    return console.log('completed deletion');
+    return console.log('completed listing');
 });
