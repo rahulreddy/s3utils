@@ -3,7 +3,7 @@ const AWS = require('aws-sdk');
 const http = require('http');
 
 // configurable params
-const BUCKET = 'foo';
+const BUCKET = '';
 const LISTING_LIMIT = 10000;
 const ACCESSKEY = '';
 const SECRETKEY = '';
@@ -13,7 +13,7 @@ const QUIET_MODE = false;
 AWS.config.update({
     accessKeyId: ACCESSKEY,
     secretAccessKey: SECRETKEY,
-    // region: "us-east-1",
+    region: "us-east-1",
     sslEnabled: false,
     endpoint: ENDPOINT,
     s3ForcePathStyle: true,
@@ -52,15 +52,23 @@ function logger (msg, val) {
 function rabbitHole(cb) {
     let VersionIdMarker = null;
     let KeyMarker = null;
+    let currentVersions = 0;
+    let nonCurrentVersions = 0;
     async.doWhilst(
         done => _listObjectVersions(VersionIdMarker, KeyMarker, (err, data) => {
             if (err) {
                 console.log('error');
                 return done(err);
             }
-            // data.Versions.forEach(d => {
-            //     // logger('Key', d.Key, 'VersionId', d.VersionId);
-            // });
+            // console.log(data)
+            data.Versions.forEach(d => {
+                if (d.IsLatest) {
+                    currentVersions++;
+                } else {
+                    nonCurrentVersions++;
+                }
+                // logger('Key', d.Key, 'VersionId', d.VersionId);
+            });
             VersionIdMarker = data.NextVersionIdMarker;
             KeyMarker = data.NextKeyMarker;
             logger('VersionIdMarker', VersionIdMarker);
@@ -74,14 +82,16 @@ function rabbitHole(cb) {
             return true;
         },
         (err, res) => {
-            console.log('err', err, 'res', res);
+            // console.log('err', err, 'res', res);
+            console.log('CURRENT: ', currentVersions);
+            console.log('NON-CURRENT: ', nonCurrentVersions);
             return cb(err, res);
         }
     );
 }
 
 rabbitHole((err, res) => {
-    console.log('err', err, 'res', res);
+    // console.log('err', err, 'res', res);
     if (err) {
         return console.log('error occured listing objects', err);
     }
