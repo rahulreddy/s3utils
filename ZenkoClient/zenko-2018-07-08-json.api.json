@@ -1,0 +1,368 @@
+{
+    "version": "1.0",
+    "metadata": {
+        "apiVersion": "2018-07-08",
+        "endpointPrefix": "s3",
+        "protocol": "rest-json",
+        "serviceAbbreviation": "zenko",
+        "serviceFullName": "Zenko Cloudserver Client",
+        "signatureVersion": "v4",
+        "timestampFormat": "rfc822",
+        "uid": "zenko-2018-07-08-json"
+    },
+    "operations": {
+        "checkConnection": {
+            "http": {
+                "method": "GET",
+                "requestUri": "/_/backbeat/api/healthcheck"
+            }
+        },
+        "listFailed": {
+            "http": {
+                "method": "GET",
+                "requestUri": "/_/backbeat/api/crr/failed"
+            },
+            "input": {
+                "type": "structure",
+                "members": {
+                    "Marker": {
+                        "location": "querystring",
+                        "locationName": "marker"
+                    },
+                    "Sitename": {
+                        "location": "querystring",
+                        "locationName": "sitename"
+                    }
+                }
+            },
+            "output": {
+                "type": "structure",
+                "members": {
+                    "IsTruncated": {
+                        "type": "boolean"
+                    },
+                    "NextMarker": {
+                        "type": "string"
+                    },
+                    "Versions": {
+                        "type": "list",
+                        "member": {
+                            "shape": "responseShape"
+                        }
+                    }
+                }
+            }
+        },
+        "getFailedObject": {
+            "http": {
+                "method": "GET",
+                "requestUri": "/_/backbeat/api/crr/failed/{Bucket}/{Key}"
+            },
+            "input": {
+                "type": "structure",
+                "required": [
+                    "Bucket",
+                    "Key",
+                    "VersionId"
+                ],
+                "members": {
+                    "Bucket": {
+                        "location": "uri",
+                        "locationName": "Bucket"
+                    },
+                    "Key": {
+                        "location": "uri",
+                        "locationName": "Key"
+                    },
+                    "VersionId": {
+                        "location": "querystring",
+                        "locationName": "versionId"
+                    }
+                }
+            },
+            "output": {
+                "type": "structure",
+                "members": {
+                    "IsTruncated": {
+                        "type": "boolean"
+                    },
+                    "Versions": {
+                        "type": "list",
+                        "member": {
+                            "shape": "responseShape"
+                        }
+                    }
+                }
+            }
+        },
+        "retryFailedObjects": {
+            "http": {
+                "method": "POST",
+                "requestUri": "/_/backbeat/api/crr/failed"
+            },
+            "input": {
+                "type": "structure",
+                "required": [
+                    "Body"
+                ],
+                "members": {
+                    "Body": {
+                        "type": "binary",
+                        "isStreaming": false
+                    }
+                },
+                "payload": "Body"
+            },
+            "output": {
+                "type": "structure",
+                "members": {
+                    "Results": {
+                        "type": "list",
+                        "member": {
+                            "shape": "retryResponseShape"
+                        }
+                    }
+                },
+                "payload": "Results"
+            }
+        },
+        "retryFailedObjectsPossibleUpdate": {
+            "http": {
+                "method": "POST",
+                "requestUri": "/_/backbeat/api/crr/failed"
+            },
+            "input": {
+                "type": "structure",
+                "required": [
+                    "Retry"
+                ],
+                "members": {
+                    "Retry": {
+                        "type": "structure",
+                        "required": [
+                            "Objects"
+                        ],
+                        "members": {
+                            "Objects": {
+                                "type": "list",
+                                "member": {
+                                    "shape": "requestShape"
+                                }
+                            }
+                        }
+                    }
+                },
+                "payload": "Retry"
+            },
+            "output": {
+                "type": "structure",
+                "members": {
+                    "Results": {
+                        "type": "list",
+                        "member": {
+                            "shape": "retryResponseShape"
+                        }
+                    }
+                },
+                "payload": "Results"
+            }
+        },
+        "pauseAllSites": {
+            "http": {
+                "method": "POST",
+                "requestUri": "/_/backbeat/api/crr/pause"
+            },
+            "input": {
+                "type": "structure",
+                "members": {
+                    "Body": {
+                        "type": "binary",
+                        "isStreaming": false
+                    }
+                },
+                "payload": "Body"
+            },
+            "output": {
+                "type": "map",
+                "key": {},
+                "value": {}
+            }
+        },
+        "pauseSite": {
+            "http": {
+                "method": "POST",
+                "requestUri": "/_/backbeat/api/crr/pause/{Site}"
+            },
+            "input": {
+                "type": "structure",
+                "required": [
+                    "Site"
+                ],
+                "members": {
+                    "Site": {
+                        "type": "string",
+                        "location": "uri",
+                        "locationName": "Site"
+                    },
+                    "Body": {
+                        "type": "binary",
+                        "isStreaming": false
+                    }
+                },
+                "payload": "Body"
+            },
+            "output": {
+                "type": "map",
+                "key": {},
+                "value": {}
+            }
+        },
+        "resumeAllSites": {
+            "http": {
+                "method": "POST",
+                "requestUri": "/_/backbeat/api/crr/resume"
+            },
+            "input": {
+                "type": "structure",
+                "members": {
+                    "Body": {
+                        "type": "binary",
+                        "isStreaming": false
+                    }
+                },
+                "payload": "Body"
+            },
+            "output": {
+                "type": "map",
+                "key": {},
+                "value": {}
+            }
+        },
+        "resumeSite": {
+            "http": {
+                "method": "POST",
+                "requestUri": "/_/backbeat/api/crr/resume/{Site}"
+            },
+            "input": {
+                "type": "structure",
+                "required": [
+                    "Site"
+                ],
+                "members": {
+                    "Site": {
+                        "type": "string",
+                        "location": "uri",
+                        "locationName": "Site"
+                    },
+                    "Body": {
+                        "type": "binary",
+                        "isStreaming": false
+                    }
+                },
+                "payload": "Body"
+            },
+            "output": {
+                "type": "map",
+                "key": {},
+                "value": {}
+            }
+        },
+        "scheduleSiteResume": {
+            "http": {
+                "method": "POST",
+                "requestUri": "/_/backbeat/api/crr/resume/{Site}/schedule"
+            },
+            "input": {
+                "type": "structure",
+                "required": [
+                    "Site"
+                ],
+                "members": {
+                    "Site": {
+                        "type": "string",
+                        "location": "uri",
+                        "locationName": "Site"
+                    },
+                    "Body": {
+                        "type": "binary",
+                        "isStreaming": false
+                    }
+                },
+                "payload": "Body"
+            },
+            "output": {
+                "type": "map",
+                "key": {},
+                "value": {}
+            }
+        }
+    },
+    "shapes": {
+        "responseShape": {
+            "type": "structure",
+            "members": {
+                "Bucket": {
+                    "type": "string"
+                },
+                "Key": {
+                    "type": "string"
+                },
+                "VersionId": {
+                    "type": "string"
+                },
+                "StorageClass": {
+                    "type": "string"
+                },
+                "Size": {
+                    "type": "integer"
+                },
+                "LastModified": {
+                    "type": "timestamp"
+                }
+            }
+        },
+        "requestShape": {
+            "type": "structure",
+            "members": {
+                "Bucket": {
+                    "type": "string"
+                },
+                "Key": {
+                    "type": "string"
+                },
+                "VersionId": {
+                    "type": "string"
+                },
+                "StorageClass": {
+                    "type": "string"
+                }
+            }
+        },
+        "retryResponseShape": {
+            "type": "structure",
+            "members": {
+                "Bucket": {
+                    "type": "string"
+                },
+                "Key": {
+                    "type": "string"
+                },
+                "VersionId": {
+                    "type": "string"
+                },
+                "StorageClass": {
+                    "type": "string"
+                },
+                "Size": {
+                    "type": "integer"
+                },
+                "LastModified": {
+                    "type": "timestamp"
+                },
+                "ReplicationStatus": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

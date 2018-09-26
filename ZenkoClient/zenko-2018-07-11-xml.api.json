@@ -1,0 +1,152 @@
+{
+    "version": "1.0",
+    "metadata": {
+        "apiVersion": "2018-07-11",
+        "endpointPrefix": "s3",
+        "protocol": "rest-xml",
+        "serviceAbbreviation": "zenko",
+        "serviceFullName": "Zenko Cloudserver Client",
+        "signatureVersion": "v4",
+        "timestampFormat": "rfc822",
+        "uid": "zenko-2018-07-11-xml"
+    },
+    "operations": {
+        "listBuckets": {
+            "http": {
+              "method": "GET"
+            },
+            "output": {
+                "type": "structure",
+                "members": {
+                    "Buckets": {
+                        "type": "list",
+                        "member": {
+                            "locationName": "Bucket",
+                            "type": "structure",
+                            "members": {
+                                "Name": {},
+                                "CreationDate": {
+                                    "type": "timestamp"
+                                }
+                            }
+                        }
+                    },
+                    "Owner": {
+                        "shape": "S2v"
+                    }
+                }
+            }
+        },
+        "searchBucket": {
+            "http": {
+                "method": "GET",
+                "requestUri": "/{Bucket}"
+            },
+            "input": {
+                "type": "structure",
+                "required": [
+                    "Bucket",
+                    "Query"
+                ],
+                "members": {
+                    "Query": {
+                        "location": "querystring",
+                        "locationName": "search"
+                    },
+                    "Bucket": {
+                        "location": "uri",
+                        "locationName": "Bucket"
+                    },
+                    "Delimiter": {
+                        "location": "querystring",
+                        "locationName": "delimiter"
+                    },
+                    "EncodingType": {
+                        "location": "querystring",
+                        "locationName": "encoding-type"
+                      },
+                    "Marker": {
+                        "location": "querystring",
+                        "locationName": "marker"
+                    },
+                    "MaxKeys": {
+                        "location": "querystring",
+                        "locationName": "max-keys",
+                        "type": "integer"
+                    },
+                    "Prefix": {
+                        "location": "querystring",
+                        "locationName": "prefix"
+                    },
+                    "RequestPayer": {
+                        "location": "header",
+                        "locationName": "x-amz-request-payer"
+                    }
+                }
+            },
+            "output": {
+                "type": "structure",
+                "members": {
+                    "IsTruncated": {
+                        "type": "boolean"
+                    },
+                    "Marker": {},
+                    "NextMarker": {},
+                    "Contents": {
+                        "shape": "S9q"
+                    },
+                    "Name": {},
+                    "Prefix": {},
+                    "Delimiter": {},
+                    "MaxKeys": {
+                        "type": "integer"
+                    },
+                    "CommonPrefixes": {
+                        "shape": "S98"
+                    },
+                    "EncodingType": {}
+                }
+            }
+        }
+    },
+    "shapes": {
+        "S98": {
+            "type": "list",
+            "member": {
+                "type": "structure",
+                "members": {
+                    "Prefix": {}
+                }
+            },
+            "flattened": true
+        },
+        "S2v": {
+            "type": "structure",
+            "members": {
+                "DisplayName": {},
+                "ID": {}
+            }
+        },
+        "S9q": {
+            "type": "list",
+            "member": {
+                "type": "structure",
+                "members": {
+                    "Key": {},
+                    "LastModified": {
+                        "type": "timestamp"
+                    },
+                    "ETag": {},
+                    "Size": {
+                        "type": "integer"
+                    },
+                    "StorageClass": {},
+                    "Owner": {
+                        "shape": "S2v"
+                    }
+                }
+            },
+            "flattened": true
+        }
+    }
+}
