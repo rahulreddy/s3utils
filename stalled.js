@@ -182,11 +182,11 @@ mongoclient.setup(err => {
     	if (err) {
             return console.error('error occurred', err);
         }
-        if (res.length > 0) {
-            console.log('stalled objects are queued', res);
+        if (res && res.length > 0) {
+            console.log('stalled objects are queued for retries');
             return;
         }
-        console.log('no stalled objects found/queued');
+        console.log('stalled objects retry job completed');
         process.exit(0);
 	});
 });
