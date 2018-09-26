@@ -93,6 +93,7 @@ class MongoClientInterfaceStalled extends MongoClientInterface {
                             Key: data._id.key,
                             VersionId: encode(data._id.versionId),
                             StorageClass: storageClass,
+                            ForceRetry: true,
                         }
                     });
                 }
@@ -181,7 +182,11 @@ mongoclient.setup(err => {
     	if (err) {
             return console.error('error occurred', err);
         }
-        console.log('stalled objects are queued', res);
+        if (res.length > 0) {
+            console.log('stalled objects are queued', res);
+            return;
+        }
+        console.log('no stalled objects found/queued');
         process.exit(0);
 	});
 });
