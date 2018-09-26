@@ -8,6 +8,7 @@ const ENDPOINT = process.env.ENDPOINT;
 const ACCESS_KEY = process.env.ACCESS_KEY;
 const SECRET_KEY = process.env.SECRET_KEY;
 const MONGODB_REPLICASET = process.env.MONGODB_REPLICASET;
+const DRY_RUN = !!process.env.DRY_RUN;
 if (!ENDPOINT) {
     throw new Error('ENDPOINT not defined!');
 }
@@ -86,7 +87,7 @@ class MongoClientInterfaceStalled extends MongoClientInterface {
                 if (withinRange) {
                     const storageClasses = data._id.storageClasses.split(',');
                     return storageClasses.map(i => {
-			const storageClass = i.split(':')[0];
+			        const storageClass = i.split(':')[0];
                         return {
                             Bucket: bucketName,
                             Key: data._id.key,
@@ -137,9 +138,13 @@ class MongoClientInterfaceStalled extends MongoClientInterface {
                         // build arrays of 10 objects each
                         stalledObjects.push(res.splice(0, 10));
                     }
-                    // upto 500 objects are retried in parallel
+                    // upto 50 objects are retried in parallel
                     return async.mapLimit(stalledObjects, 5, (i, done) => {
                         console.log('retrying stalled objects, count# ', i.length);
+                        if (DRY_RUN) {
+                            console.log('dry run, skipping retry request');
+                            return done();
+                        }
                         zenkoClient.retryFailedObjects({
                             Body: JSON.stringify(i)
                         }, done);
@@ -177,6 +182,6 @@ mongoclient.setup(err => {
             return console.error('error occurred', err);
         }
         console.log('stalled objects are queued', res);
-	process.exit(0);
+        process.exit(0);
 	});
 });
