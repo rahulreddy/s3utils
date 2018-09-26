@@ -1,7 +1,7 @@
 const { MongoClientInterface } = require('arsenal').storage.metadata.mongoclient;
 const async = require('async');
 const { Logger } = require('werelogs');
-const ZenkoClient = require('ZenkoClient');
+const ZenkoClient = require('./ZenkoClient');
 const ENDPOINT = process.env.ENDPOINT;
 const ACCESS_KEY = process.env.ACCESS_KEY;
 const SECRET_KEY = process.env.SECRET_KEY;
@@ -18,7 +18,12 @@ if (!SECRET_KEY) {
 if (!MONGODB_REPLICASET) {
     throw new Error('MONGODB_REPLICASET not defined');
 }
-
+const USERSBUCKET = '__usersbucket';
+const METASTORE = '__metastore';
+const INFOSTORE = '__infostore';
+const __UUID = 'uuid';
+const PENSIEVE = 'PENSIEVE';
+const MPU_BUCKET_PREFIX = 'mpuShadowBucket';
 const zenkoClient = new ZenkoClient({
     apiVersion: '2018-07-08-json',
     accessKeyId: ACCESS_KEY,
@@ -27,6 +32,7 @@ const zenkoClient = new ZenkoClient({
     s3ForcePathStyle: true,
     signatureVersion: 'v4',
     maxRetries: 0,
+    sslEnabled: false,
 });
 //const log = new werelogs.Logger('stalled');
 
@@ -44,6 +50,7 @@ class MongoClientInterfaceStalled extends MongoClientInterface {
             '_id': {
                 id: '$_id',
                 storageClasses: '$value.replicationInfo.storageClass',
+		status: '$value.replicationInfo.status',
                 key: '$value.key',
                 versionId: '$value.versionId',
             },
@@ -60,7 +67,7 @@ class MongoClientInterfaceStalled extends MongoClientInterface {
                 log.debug('unable to retrieve stalled entries', {
                     error: err,
                 });
-                return cb(null);
+                return cb(err);
             }
             const stalledObjects = res.map(data => {
                 if (!data || typeof data !== 'object' ||
@@ -74,21 +81,25 @@ class MongoClientInterfaceStalled extends MongoClientInterface {
                 const testDate = new Date(time);
                 const withinRange = testDate <= cmpDate;
                 if (withinRange) {
-                    const storageClasses = data._id.storageClasses,
-                    return storageClasses.map(storageClass => {
+                    const storageClasses = data._id.storageClasses.split(',');
+                    return storageClasses.map(i => {
+			const storageClass = i.split(':')[0];
                         return {
                             Bucket: bucketName,
-                            Key: i._id.key,
-                            VersionId: i._id.versionId,
+                            Key: data._id.key,
+                            VersionId: data._id.versionId,
                             StorageClass: storageClass,
                         }
                     });
                 }
             })
             // filter nulls
-            .filter(i => i)
-            // flatten array of arrays 
-            .reduce((accumulator, currVal) => accumulator.concat(currVal));
+            .filter(i => !!i)
+            // flatten array of arrays
+            if (stalledObjects.length > 0) {
+                return cb(null, stalledObjects
+                    .reduce((accumulator, currVal) => accumulator.concat(currVal)));
+	    }
             return cb(null, stalledObjects);
         });
     }
@@ -103,7 +114,7 @@ class MongoClientInterfaceStalled extends MongoClientInterface {
                     value.name === INFOSTORE ||
                     value.name === USERSBUCKET ||
                     value.name === PENSIEVE ||
-                    value.name.startsWith(constants.mpuBucketPrefix);
+                    value.name.startsWith(MPU_BUCKET_PREFIX);
                 if (skipBucket) {
                     // skip
                     return next();
@@ -113,6 +124,7 @@ class MongoClientInterfaceStalled extends MongoClientInterface {
                     if (err) {
                         return next(err);
                     }
+                    const count = res.length;
                     const stalledObjects = [];
                     while(res.length > 0) {
                         // build arrays of 100 objects each
@@ -123,7 +135,12 @@ class MongoClientInterfaceStalled extends MongoClientInterface {
                         zenkoClient.retryFailedObjects({
                             Body: JSON.stringify(i)
                         }, done);
-                    }, next);
+                    }, (err) => {
+                        if (err) {
+                            return next(err);
+                        }
+                        return next(null, { bucket: bucketName, count });
+                    });
                 });
                 return;
             }, cb);
@@ -151,5 +168,7 @@ mongoclient.setup(err => {
     	if (err) {
             return console.error('error occurred', err);
         }
+        console.log('stalled objects are queued', res);
+	process.exit(0);
 	});
 });
