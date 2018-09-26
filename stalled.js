@@ -1,4 +1,6 @@
 const { MongoClientInterface } = require('arsenal').storage.metadata.mongoclient;
+const  VersionID = require('arsenal').versioning.VersionID;
+const encode = VersionID.encode;
 const async = require('async');
 const { Logger } = require('werelogs');
 const ZenkoClient = require('./ZenkoClient');
@@ -87,7 +89,7 @@ class MongoClientInterfaceStalled extends MongoClientInterface {
                         return {
                             Bucket: bucketName,
                             Key: data._id.key,
-                            VersionId: data._id.versionId,
+                            VersionId: encode(data._id.versionId),
                             StorageClass: storageClass,
                         }
                     });
@@ -127,8 +129,8 @@ class MongoClientInterfaceStalled extends MongoClientInterface {
                     const count = res.length;
                     const stalledObjects = [];
                     while(res.length > 0) {
-                        // build arrays of 100 objects each
-                        stalledObjects.push(res.splice(0, 100));
+                        // build arrays of 10 objects each
+                        stalledObjects.push(res.splice(0, 10));
                     }
                     // upto 500 objects are retried in parallel
                     return async.mapLimit(stalledObjects, 5, (i, done) => {
