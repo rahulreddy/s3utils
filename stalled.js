@@ -1,12 +1,24 @@
-const { MongoClientInterface } = 
-    require('arsenal').storage.metadata.mongoclient;
+const { MongoClientInterface } = require('arsenal').storage.metadata.mongoclient;
 const async = require('async');
 const { Logger } = require('werelogs');
 const ZenkoClient = require('ZenkoClient');
-const BUCKET = 'transient-src-test-bucket-2';
-const ENDPOINT = '';
-const ACCESS_KEY = '';
-const SECRET_KEY = '';
+const ENDPOINT = process.env.ENDPOINT;
+const ACCESS_KEY = process.env.ACCESS_KEY;
+const SECRET_KEY = process.env.SECRET_KEY;
+const MONGODB_REPLICASET = process.env.MONGODB_REPLICASET;
+if (!ENDPOINT) {
+    throw new Error('ENDPOINT not defined!');
+}
+if (!ACCESS_KEY) {
+    throw new Error('ACCESS_KEY not defined');
+}
+if (!SECRET_KEY) {
+    throw new Error('SECRET_KEY not defined');
+}
+if (!MONGODB_REPLICASET) {
+    throw new Error('MONGODB_REPLICASET not defined');
+}
+
 const zenkoClient = new ZenkoClient({
     apiVersion: '2018-07-08-json',
     accessKeyId: ACCESS_KEY,
@@ -21,10 +33,11 @@ const zenkoClient = new ZenkoClient({
 class MongoClientInterfaceStalled extends MongoClientInterface {
     constructor(params) {
         super(params);
+        this.zenkoClient = zenkoClient;
     }
 
-    getStalledObjects(cb) {
-	const c = this.getCollection(BUCKET);
+    _getStalledObjectsByBucket(bucketName, cb) {
+        const c = this.getCollection(bucketName);
         const cmpDate = new Date();
         cmpDate.setHours(cmpDate.getHours() - 1);
         const reducedFields = {
@@ -49,7 +62,7 @@ class MongoClientInterfaceStalled extends MongoClientInterface {
                 });
                 return cb(null);
             }
-            const count = res.filter(data => {
+            const stalledObjects = res.map(data => {
                 if (!data || typeof data !== 'object' ||
                     !data.value || typeof data.value !== 'object') {
                     return false;
@@ -59,16 +72,67 @@ class MongoClientInterfaceStalled extends MongoClientInterface {
                     return false;
                 }
                 const testDate = new Date(time);
-                const result = testDate <= cmpDate;
-                return result;
-            }).length;
-            return cb(null, count);
+                const withinRange = testDate <= cmpDate;
+                if (withinRange) {
+                    const storageClasses = data._id.storageClasses,
+                    return storageClasses.map(storageClass => {
+                        return {
+                            Bucket: bucketName,
+                            Key: i._id.key,
+                            VersionId: i._id.versionId,
+                            StorageClass: storageClass,
+                        }
+                    });
+                }
+            })
+            // filter nulls
+            .filter(i => i)
+            // flatten array of arrays 
+            .reduce((accumulator, currVal) => accumulator.concat(currVal));
+            return cb(null, stalledObjects);
+        });
+    }
+
+    queueStalledObjects(cb) {
+        this.db.listCollections().toArray((err, collections) => {
+            if (err) {
+                return cb(err);
+            }
+            async.eachLimit(collections, 1, (value, next) => {
+                const skipBucket = value.name === METASTORE ||
+                    value.name === INFOSTORE ||
+                    value.name === USERSBUCKET ||
+                    value.name === PENSIEVE ||
+                    value.name.startsWith(constants.mpuBucketPrefix);
+                if (skipBucket) {
+                    // skip
+                    return next();
+                }
+                const bucketName = value.name;
+                this._getStalledObjectsByBucket(bucketName, (err, res) => {
+                    if (err) {
+                        return next(err);
+                    }
+                    const stalledObjects = [];
+                    while(res.length > 0) {
+                        // build arrays of 100 objects each
+                        stalledObjects.push(res.splice(0, 100));
+                    }
+                    // upto 500 objects are retried in parallel
+                    return async.mapLimit(stalledObjects, 5, (i, done) => {
+                        zenkoClient.retryFailedObjects({
+                            Body: JSON.stringify(i)
+                        }, done);
+                    }, next);
+                });
+                return;
+            }, cb);
         });
     }
 }
 
 const config = {
-    "replicaSetHosts": "bloomberg-zenko-mongodb-replicaset-0.bloomberg-zenko-mongodb-replicaset:27017,bloomberg-zenko-mongodb-replicaset-1.bloomberg-zenko-mongodb-replicaset:27017,bloomberg-zenko-mongodb-replicaset-2.bloomberg-zenko-mongodb-replicaset:27017,bloomberg-zenko-mongodb-replicaset-3.bloomberg-zenko-mongodb-replicaset:27017,bloomberg-zenko-mongodb-replicaset-4.bloomberg-zenko-mongodb-replicaset:27017",
+    "replicaSetHosts": MONGODB_REPLICASET,
     "writeConcern": "majority",
     "replicaSet": "rs0",
     "readPreference": "primary",
@@ -83,32 +147,9 @@ mongoclient.setup(err => {
         console.error('error connecting to mongodb', err);
 		return;
 	}
-	mongoclient.getStalledObjects((err, res) => {
+	mongoclient.queueStalledObjects((err, res) => {
     	if (err) {
             return console.error('error occurred', err);
         }
-        const stalled = res.map(i => {
-            const storageClasses = i._id.storageClasses,
-            return storageClasses.map(storageClass => {
-                return {
-                    Bucket: BUCKET,
-                    Key: i._id.key,
-                    VersionId: i._id.versionId,
-                    StorageClass: storageClass,
-                }
-            });
-        }).reduce((accumulator, currVal) => accumulator.concat(currVal));
-
-
-        async.mapLimit(res, 100, (i, next) => {
-            zenkoClient.retryFailedObjects({
-                Body: JSON.stringify(retryBody)
-            }, next);
-        }, (err, res) => {
-            if (err) {
-                return console.error('error occured', err);
-            }
-            return console.log(res);
-        });
 	});
 });
