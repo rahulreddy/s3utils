@@ -35,6 +35,7 @@ const zenkoClient = new ZenkoClient({
     signatureVersion: 'v4',
     maxRetries: 0,
     sslEnabled: false,
+    httpOptions: { timeout: 0 },
 });
 //const log = new werelogs.Logger('stalled');
 
@@ -126,6 +127,10 @@ class MongoClientInterfaceStalled extends MongoClientInterface {
                     if (err) {
                         return next(err);
                     }
+                    if (!res) {
+                        console.log('no stalled objects for bucket: ', bucketName);
+                        return next();
+                    }
                     const count = res.length;
                     const stalledObjects = [];
                     while(res.length > 0) {
@@ -134,6 +139,7 @@ class MongoClientInterfaceStalled extends MongoClientInterface {
                     }
                     // upto 500 objects are retried in parallel
                     return async.mapLimit(stalledObjects, 5, (i, done) => {
+                        console.log('retrying stalled objects, count# ', i.length);
                         zenkoClient.retryFailedObjects({
                             Body: JSON.stringify(i)
                         }, done);

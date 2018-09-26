@@ -52,4 +52,4 @@ Object.defineProperty(AWS.apiLoader.services.zenko, '2018-07-11-xml', {
     configurable: true,
 });
 
-export { ZenkoClient };
+module.exports = ZenkoClient;
