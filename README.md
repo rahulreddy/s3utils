@@ -1,5 +1,7 @@
 # s3utils
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/rahulreddy/s3utils.svg)](https://greenkeeper.io/)
+
 Awesome scripts to use when working with S3 at scale
 
 ## Usage
