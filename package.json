@@ -10,7 +10,7 @@
   "license": "MIT",
   "dependencies": {
     "async": "^2.5.0",
-    "aws-sdk": "^2.132.0",
+    "aws-sdk": "^2.706.0",
     "arsenal": "scality/arsenal#0d4bf3c17fd9f00e6dedcb7fa486e850624de978",
     "werelogs": "scality/werelogs#development/8.0"
   }
